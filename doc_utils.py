@@ -1,5 +1,13 @@
 """
 
+This is tested for the 0.8x branch, but not 0.9x.
+It seems there are some small breaking changes (or
+perhaps just bugs ;) in 0.9, so the script may require
+some minor modifications before using it there.
+
+
+### Usage
+
 This script facilitates validating JSON and Python datastructures,
 and then POST or PUTing them to a CouchDB server.
 
@@ -164,7 +172,16 @@ def main():
     global PORT
     global HOSTNAME
     global VERBOSE
-    parser = OptionParser("usage: python doc_utils.py database [path]")
+    parser = OptionParser("usage: python doc_utils.py database path?")
+    parser.add_option("-p","--port",dest="port",
+                       help="PORT for CouchDB",
+                       metavar="PORT")
+    parser.add_option("-n","--hostname",dest="hostname",
+                       help="HOSTNAME for CouchDB",
+                       metavar="HOSTNAME")
+    parser.add_option("-v","--verbose",dest="verbose",
+                       help="Level of script verbosity. 0 or 1",
+                       metavar="VERBOSE")
     (options, args) = parser.parse_args()
     if len(args) < 1:
         parser.error("must specify a database")
@@ -173,7 +190,15 @@ def main():
     else:
         DATABASE = args[0]
         PATH = args[1]
+
+
+    print options, args
+
+    PORT = options.port if options.port else 5984
+    HOSTNAME = options.hostname if options.hostname else 'localhost'
+    VERBOSE = int(options.verbose) if options.verbose else False
     
+    # use specified path
     if os.path.isdir(PATH):
         handle_directory(PATH)
     else:
