@@ -184,7 +184,7 @@ def main():
                        help="HOSTNAME for CouchDB",
                        metavar="HOSTNAME")
     parser.add_option("-v","--verbose",dest="verbose",
-                       help="Level of script verbosity. 0 or 1",
+                       action="store_true", default=False,
                        metavar="VERBOSE")
     (options, args) = parser.parse_args()
     if len(args) < 1:
