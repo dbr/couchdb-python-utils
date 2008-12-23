@@ -161,7 +161,7 @@ class DocUtils:
                 data = eval(data)
             except SyntaxError, errormsg:
                 print "Warning: Ignoring %s - does not meet requirements for CouchDB format (%s)" % (filename, errormsg)
-            return
+                return
     
         if type(data) == dict:
             self.send_document(json.dumps(data), data['_id'])
