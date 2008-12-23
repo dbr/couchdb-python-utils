@@ -4,10 +4,22 @@
 This script facilitates validating JSON and Python datastructures,
 and then POST or PUTing them to a CouchDB server.
 
-The script has one required and one optional positional parameter:
+This is tested for the 0.8x branch, but not 0.9x.
+It seems there are some small breaking changes (or
+perhaps just bugs ;) in 0.9, so the script may require
+some minor modifications before using it there.
+
+### Usage
+
+This script facilitates validating JSON and Python datastructures,
+and then POST or PUTing them to a CouchDB server.
+
+The script has one required and one or more optional positional
+parameters:
 
     python doc_utils database-name
     python doc_utils database-name path/to/folder/or/file
+    python doc_utils database-name doc1.py doc2.py doc3.json doc4.js
 
 If you specify a folder, then the script will examine all
 .py, .json, and .js files in the folder, and--if they meet
