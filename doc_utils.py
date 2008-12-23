@@ -1,5 +1,8 @@
 """
 
+This script facilitates validating JSON and Python datastructures,
+and then POST or PUTing them to a CouchDB server.
+
 This is tested for the 0.8x branch, but not 0.9x.
 It seems there are some small breaking changes (or
 perhaps just bugs ;) in 0.9, so the script may require
