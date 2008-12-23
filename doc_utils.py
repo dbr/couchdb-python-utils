@@ -112,6 +112,10 @@ def handle_directory(path):
 def handle_file(file):
     global VERBOSE
     _, ext = os.path.splitext(file)
+    if os.path.samefile(os.path.join(sys.path[0],sys.argv[0]), file):
+        if VERBOSE:
+            print "Ignoring %s (this script)." % file
+        return
     if ext == ".py":
         if VERBOSE:
             print "Handling %s as python file." % file
