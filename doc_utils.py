@@ -86,7 +86,7 @@ except ImportError:
         try:
             from django.utils import simplejson as json
         except:
-            raise "Requires either simplejson or Python 2.6!"
+            raise "Requires either simplejson, Python 2.6 or django.utils!"
 
 __AUTHOR__ = "Will Larson (lethain@gmail.com)"
 __LICENSE__ = "MIT License"
