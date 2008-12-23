@@ -123,7 +123,7 @@ def handle_file(file):
         data = f.read()
         f.close()
         handle_python(file, data)
-    elif ext == ".json" or ext == ".js":
+    elif ext in [".json", ".js"]:
         if VERBOSE:
             print "Handling %s as JSON file." % file
         f = open(file,'r')
