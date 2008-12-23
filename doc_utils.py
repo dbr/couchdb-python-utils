@@ -75,7 +75,7 @@ like as well. Cool, eh?
 """
 
 
-import os, httplib2, time
+import os, sys, httplib, time
 from optparse import OptionParser
 try:
     import simplejson as json
@@ -159,16 +159,19 @@ def send_document(data, id="_bulk_docs"):
     global DATABASE
     if VERBOSE:
         print "Sending _id: %s" % id
-        print data
-    uri = "http://%s:%s/%s/%s" % (HOSTNAME,PORT,DATABASE,id)
-    h = httplib2.Http()
+        print "Data:", data
+    
+    path = "/%s/%s" % (DATABASE,id)
+    
+    h = httplib.HTTPConnection(HOSTNAME, PORT)
     if id == "_bulk_docs":
-        resp,content = h.request(uri,"POST",data)
+        h.request("POST",path,data)
+        resp = h.getresponse()
     else:
-        resp,content = h.request(uri,"PUT",data)
+        h.request("PUT",path,data)
+        resp = h.getresponse()
     if VERBOSE:
-        print resp
-        print content
+        print "Status:", resp.status
     
 def main():
     global DATABASE
