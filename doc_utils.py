@@ -11,10 +11,12 @@ some minor modifications before using it there.
 This script facilitates validating JSON and Python datastructures,
 and then POST or PUTing them to a CouchDB server.
 
-The script has one required and one optional positional parameter:
+The script has one required and one or more optional positional
+parameters:
 
     python doc_utils database-name
     python doc_utils database-name path/to/folder/or/file
+    python doc_utils database-name doc1.py doc2.py doc3.json doc4.js
 
 If you specify a folder, then the script will examine all
 .py, .json, and .js files in the folder, and--if they meet
@@ -86,130 +88,149 @@ except ImportError:
         try:
             from django.utils import simplejson as json
         except:
-            raise "Requires either simplejson, Python 2.6 or django.utils!"
+            raise ImportError("Requires either simplejson, Python 2.6 or django.utils!")
 
 __AUTHOR__ = "Will Larson (lethain@gmail.com)"
 __LICENSE__ = "MIT License"
 
+class DocUtils:
+    def __init__(self, hostname, port, path, database, delay = 0.1, verbose = False):
+        self.hostname = hostname
+        self.port = port
+        
+        self.path = path
+        self.database = database
+        
+        self.delay = delay
+        self.verbose = verbose
+        
+        self.main()
+    
+    def main(self):
+        # If path is list of arguments, run each of them
+        if isinstance(self.path, list):
+            for cur_dir in self.path:
+                self.launcher(cur_dir)
+        else:
+            self.launcher(self.path)
+    
+    def launcher(self, path):
+        if os.path.isdir(path):
+            self.handle_directory(path)
+        else:
+            self.handle_file(path)
 
-HOSTNAME = 'localhost'
-PORT = 5984
-DATABASE = None
-PATH = "./"
-VERBOSE = False
-DELAY_BETWEEN_SENDS = 0.1
+    def handle_directory(self, path):
+        if self.verbose:
+            print "Handling directory at %s" % path
+        for filename in os.listdir(path):
+            if not os.path.isdir(filename):
+                self.handle_file(os.path.join(path,filename))
+                time.sleep(self.delay)
 
-def handle_directory(path):
-    global VERBOSE
-    global DELAY_BETWEEN_SENDS
-    if VERBOSE:
-        print "Handling directory at %s" % path
-    for file in os.listdir(path):
-        if not os.path.isdir(file):
-            handle_file(os.path.join(path,file))
-            time.sleep(DELAY_BETWEEN_SENDS)
+    def handle_file(self, filename):
+        _, ext = os.path.splitext(filename)
+        if os.path.samefile(os.path.join(sys.path[0],sys.argv[0]), filename):
+            if self.verbose:
+                print "Ignoring %s (this script)." % filename
+            return
+        if ext == ".py":
+            if self.verbose:
+                print "Handling %s as Python filename." % filename
+            f = open(filename,'r')
+            data = f.read()
+            f.close()
+            self.handle_python(filename, data)
+        elif ext in [".json", ".js"]:
+            if self.verbose:
+                print "Handling %s as JSON filename." % filename
+            f = open(filename,'r')
+            data = f.read()
+            f.close()
+            self.handle_json(filename, data)
+        else:
+            if self.verbose:
+                print "Ignoring %s." % filename
 
-def handle_file(file):
-    global VERBOSE
-    _, ext = os.path.splitext(file)
-    if os.path.samefile(os.path.join(sys.path[0],sys.argv[0]), file):
-        if VERBOSE:
-            print "Ignoring %s (this script)." % file
-        return
-    if ext == ".py":
-        if VERBOSE:
-            print "Handling %s as python file." % file
-        f = open(file,'r')
-        data = f.read()
-        f.close()
-        handle_python(file, data)
-    elif ext in [".json", ".js"]:
-        if VERBOSE:
-            print "Handling %s as JSON file." % file
-        f = open(file,'r')
-        data = f.read()
-        f.close()
-        handle_json(file, data)
-    else:
-        if VERBOSE:
-            print "Ignoring %s." % file
+    def handle_json(self, filename, string):
+        self.handle_python(filename, json.loads(string), loaded=True)
 
-def handle_json(file, str):
-    handle_python(file, json.loads(str),loaded=True)
-
-def handle_python(file, data,loaded=False):
-    if not loaded:
-        try:
-            data = eval(data)
-        except:
-            print "%s does not meet requirements for CouchDB format." % file
+    def handle_python(self, filename, data,loaded=False):
+        if not loaded:
+            try:
+                data = eval(data)
+            except SyntaxError, errormsg:
+                print "Warning: Ignoring %s - does not meet requirements for CouchDB format (%s)" % (filename, errormsg)
             return
     
-    if type(data) == dict:
-        send_document(json.dumps(data), data['_id'])
-    else:
-        # put data into bulk submit format
-        data = { "docs" : data }
-        send_document(json.dumps(data))
+        if type(data) == dict:
+            self.send_document(json.dumps(data), data['_id'])
+        else:
+            # put data into bulk submit format
+            data = { "docs" : data }
+            self.send_document(json.dumps(data))
 
-def send_document(data, id="_bulk_docs"):
-    global VERBOSE
-    global HOSTNAME
-    global PORT
-    global DATABASE
-    if VERBOSE:
-        print "Sending _id: %s" % id
-        print "Data:", data
+    def send_document(self, data, docid="_bulk_docs"):
+        if self.verbose:
+            print "Sending _id: %s" % docid
+            print "Data:", data
     
-    path = "/%s/%s" % (DATABASE,id)
-    
-    h = httplib.HTTPConnection(HOSTNAME, PORT)
-    if id == "_bulk_docs":
-        h.request("POST",path,data)
-        resp = h.getresponse()
-    else:
-        h.request("PUT",path,data)
-        resp = h.getresponse()
-    if VERBOSE:
-        print "Status:", resp.status
+        path = "/%s/%s" % (self.database, docid)
+        
+        h = httplib.HTTPConnection(self.hostname, self.port)
+        if docid == "_bulk_docs":
+            h.request("POST",path,data)
+            resp = h.getresponse()
+        else:
+            h.request("PUT",path,data)
+            resp = h.getresponse()
+        
+        resp_text = resp.read()
+        
+        if int(resp.status) >= 400:
+            print "Error (%s): %s" % (resp.status, resp_text)
+        
+        if self.verbose:
+            print "Status:", resp.status
+            print resp.read()
     
 def main():
-    global DATABASE
-    global PATH
-    global PORT
-    global HOSTNAME
-    global VERBOSE
-    parser = OptionParser("usage: python doc_utils.py database path?")
-    parser.add_option("-p","--port",dest="port",
+    DEFAULT_PATH = "./"
+    
+    parser = OptionParser("usage: python doc_utils.py database [path to docs]")
+    parser.add_option("-p","--port",dest="port",type="int",
                        help="PORT for CouchDB",
-                       metavar="PORT")
+                       default = 5984)
     parser.add_option("-n","--hostname",dest="hostname",
                        help="HOSTNAME for CouchDB",
-                       metavar="HOSTNAME")
+                       default="localhost")
     parser.add_option("-v","--verbose",dest="verbose",
-                       action="store_true", default=False,
-                       metavar="VERBOSE")
+                       action="store_true",
+                       default=False)
+    parser.add_option("-d","--delay",dest="delay",type="float",
+                      help="Delay between docs being sent",
+                      default=0.1)
+
     (options, args) = parser.parse_args()
-    if len(args) < 1:
+    if len(args) == 0:
         parser.error("must specify a database")
     elif len(args) == 1:
-        DATABASE = args[0]
+        options.database = args[0]
+        options.path = DEFAULT_PATH
+    elif len(args) >= 2:
+        options.database = args[0]
+        options.path = args[1:]
     else:
-        DATABASE = args[0]
-        PATH = args[1]
-
-
-    print options, args
-
-    PORT = options.port if options.port else 5984
-    HOSTNAME = options.hostname if options.hostname else 'localhost'
-    VERBOSE = int(options.verbose) if options.verbose else False
+        parser.error("Invalid arguments")
     
-    # use specified path
-    if os.path.isdir(PATH):
-        handle_directory(PATH)
-    else:
-        handle_file(PATH)
+    DocUtils(
+        hostname = options.hostname,
+        port = options.port,
+        path = options.path,
+        database = options.database,
+        delay = options.delay,
+        verbose = options.verbose
+    )
 
 if __name__ == '__main__':
     main()
